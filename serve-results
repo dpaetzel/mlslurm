@@ -1,0 +1,33 @@
+#!/usr/bin/env fish
+
+
+set pwd (pwd)
+
+
+set mlruns $argv[1]
+
+
+echo "X$mlruns"
+
+
+if test "X$mlruns" = "X" -o "X$mlruns" = "X--"
+    set mlruns results/(ls results | tail -1)/mlruns
+    echo "Set mlruns folder to most recent download $mlruns."
+end
+
+
+set mlruns (readlink -f $mlruns)
+
+
+and echo "Serving tracking URI $mlruns."
+echo "Note that you should provide the mlruns folder here."
+echo "Continue? (abort with Ctrl-C, continue with Enter)"
+read
+
+
+# 15 mins to load 80000 runs.
+mlflow ui \
+    --backend-store-uri "$mlruns" \
+    --default-artifact-root "$mlruns" \
+    --gunicorn-opts "--timeout 0" \
+    $argv[2..]

@@ -1,0 +1,29 @@
+#!/usr/bin/env fish
+
+
+set host c3d
+
+
+set base_path /data/oc-compute03/hoffmada/RSLModels.jl
+
+
+set fetch_dir "2023-10-18-386605-data-complete"
+
+
+# Local directories to store copied data in.
+set dir (pwd)/data-stats
+
+
+echo "Fetching stats from $base_path/$fetch_dir to $dir/$fetch_dir."
+echo "Continue? (abort with Ctrl-C, continue with Enter)"
+read
+
+
+mkdir -p "$dir"
+
+
+ssh "$host" "tar --exclude='*.data.npz' --exclude='*.task.jls' --verbose --gzip --create --file - -C $base_path $fetch_dir" \
+    | tar --verbose --extract --gzip --file - -C "$dir" --overwrite
+
+
+chmod -R -w "$dir"/"$fetch_dir"

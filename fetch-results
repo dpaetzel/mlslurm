@@ -1,0 +1,72 @@
+#!/usr/bin/env fish
+
+
+set host c3d
+
+
+set base_path /data/oc-compute03/hoffmada/run-rsl-bench
+
+
+if test -z $argv[1]
+    set exp_time \
+        (ssh "$host" -- ls "$base_path/results" | tail -1)
+else
+    # 2022-01-24T15:23:12.447768
+    set exp_time $argv[1]
+end
+
+
+set fetch_dir "$base_path/results"
+
+
+# Local directories to store copied data in.
+set dir (pwd)/results
+
+
+echo "Fetching results from $fetch_dir/$exp_time to $dir."
+echo "Continue? (abort with Ctrl-C, continue with Enter)"
+read
+
+
+mkdir -p "$dir"/"$exp_time"
+
+
+# Enable write access in case we need to overwrite something.
+chmod -R +w "$dir"/"$exp_time"
+
+
+# Fetch data.
+ssh "$host" "tar vczpf - -C '$fetch_dir' '$exp_time'" \
+    | tar vxzpf - -C "$dir" --overwrite
+
+
+# Fetch data but do not copy models.
+# ssh ad "tar vczpf --exclude=*/estimator - -C '$fetch_dir' '$exp_time'" \
+#     | tar vxzpf - -C "$dir" --overwrite
+# rsync \
+#   --exclude '**/estimator' \
+#   -avh \
+#   c3d:/data/oc-compute03/hoffmada/run-rsl-bench/results/2023-06-07T17:08:09.091663 \
+#   results-remote/
+
+
+# Fix paths in mlruns data.
+#
+# While technically correct, the following results in an argument list too long
+# and exceeds some OS limits.
+# sed -i -r \
+#     's|/data/oc-compute03/hoffmada/run-rsl-bench/?||g' \
+#     "$dir"/"$exp_time"/mlruns/**/meta.yaml \
+#     "$dir"/"$exp_time"/mlruns/**/mlflow.source.name
+# This does the same but works even if there are many files to be fixed.
+find "$dir"/"$exp_time" \
+    -name meta.yaml \
+    -exec sed -i -r "s|/data/.*/(mlruns/.*)|$dir/$exp_time/\1|g" '{}' ';'
+
+
+# Disable write access to not accidentally change anything.
+chmod -R -w "$dir"/"$exp_time"/*
+
+
+# The mlruns folder itself has to be writable.
+chmod +w "$dir"/"$exp_time"/mlruns
